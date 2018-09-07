@@ -32,12 +32,12 @@
 
 package de.interactive_instruments.ShapeChange.Target.XmlSchema;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.FileOutputStream;
-import java.io.BufferedOutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -70,9 +70,9 @@ import de.interactive_instruments.ShapeChange.ShapeChangeResult;
 import de.interactive_instruments.ShapeChange.ShapeChangeResult.MessageContext;
 import de.interactive_instruments.ShapeChange.Type;
 import de.interactive_instruments.ShapeChange.Model.AssociationInfo;
+import de.interactive_instruments.ShapeChange.Model.ClassInfo;
 import de.interactive_instruments.ShapeChange.Model.Info;
 import de.interactive_instruments.ShapeChange.Model.Model;
-import de.interactive_instruments.ShapeChange.Model.ClassInfo;
 import de.interactive_instruments.ShapeChange.Model.PackageInfo;
 import de.interactive_instruments.ShapeChange.Model.PropertyInfo;
 import de.interactive_instruments.ShapeChange.Model.Qualifier;
@@ -679,6 +679,17 @@ public class XsdDocument implements MessageSource {
 			return;
 		}
 
+		if (ci.matches("rule-xsd-cls-adehook")
+				&& (ci.category() == Options.FEATURE || ci.category() == Options.MIXIN)) {
+			Element e4 = document.createElementNS(Options.W3C_XML_SCHEMA, "element");
+			document.getDocumentElement().appendChild(e4);
+			addAttribute(e4, "name", "AbstractGenericApplicationPropertyOf" + ci.name());
+			addAttribute(e4, "type", "anyType");
+			addAttribute(e4, "abstract", "true");
+			if (ci.category() == Options.MIXIN)
+				return;
+		}
+
 		Element e4 = document.createElementNS(Options.W3C_XML_SCHEMA,
 				"element");
 		document.getDocumentElement().appendChild(e4);
@@ -1182,11 +1193,14 @@ public class XsdDocument implements MessageSource {
 		if (id != null) {
 			String base = ci.taggedValue("base");
 			String length = ci.taggedValue("length");
-			if (length == null)
-				length = ci.taggedValue("maxLength");
+			// if (length == null)
+			// length = ci.taggedValue("maxLength");
 			String pattern = ci.taggedValue("pattern");
 			String min = ci.taggedValue("rangeMinimum");
 			String max = ci.taggedValue("rangeMaximum");
+			if (max == null)
+				max = ci.taggedValue("maxLength");
+			String itemType = ci.taggedValue("itemType");
 			String typecontent = "simple/simple";
 
 			/*
@@ -1277,11 +1291,16 @@ public class XsdDocument implements MessageSource {
 					e3.appendChild(e5);
 					addAttribute(e5, "value", length);
 				}
-				if (facetSupported("maxLength", baseType) && length != null) {
+				if (facetSupported("minLength", baseType) && min != null) {
+					Element e5 = document.createElementNS(Options.W3C_XML_SCHEMA, "minLength");
+					e3.appendChild(e5);
+					addAttribute(e5, "value", min);
+				}
+				if (facetSupported("maxLength", baseType) && max != null) {
 					Element e5 = document.createElementNS(
 							Options.W3C_XML_SCHEMA, "maxLength");
 					e3.appendChild(e5);
-					addAttribute(e5, "value", length);
+					addAttribute(e5, "value", max);
 				}
 				if (facetSupported("pattern", baseType) && pattern != null) {
 					Element e5 = document
@@ -1301,6 +1320,17 @@ public class XsdDocument implements MessageSource {
 					e3.appendChild(e5);
 					addAttribute(e5, "value", max);
 				}
+				if (facetSupported("length", baseType) && length != null) {
+					Element e5 = document.createElementNS(Options.W3C_XML_SCHEMA, "length");
+					e3.appendChild(e5);
+					addAttribute(e5, "value", length);
+				}
+			} else if (itemType != null) {
+				e1 = document.createElementNS(Options.W3C_XML_SCHEMA, "simpleType");
+				addStandardAnnotation(e1, ci);
+				Element e6 = document.createElementNS(Options.W3C_XML_SCHEMA, "list");
+				e1.appendChild(e6);
+				addAttribute(e6, "itemType", itemType);
 			} else {
 				MessageContext mc = result.addError(null, 122, ci.name());
 				if (mc != null)
@@ -1484,8 +1514,19 @@ public class XsdDocument implements MessageSource {
 			return true;
 		// if we have a non-XSD base type we cannot check if the facet is
 		// appropriate
-		if (base.contains(":"))
+		if (base.contains(":")) {
+			if (base.equals("gml:doubleList") || base.equals("core:DoubleBetween0and1ListType")) {
+				if (facet.equals("length"))
+					return true;
+				if (facet.equals("minLength"))
+					return true;
+				if (facet.equals("maxLength"))
+					return true;
+				else
+					return false;
+			}
 			return true;
+		}
 		return false;
 	}
 
@@ -1693,26 +1734,12 @@ public class XsdDocument implements MessageSource {
 				res++;
 		}
 
-		if (ci.matches("rule-xsd-cls-adehook")) {
-
-			// Name of the ADE hook
-			String elementName = "AbstractGenericApplicationPropertyOf"
-					+ ci.name();
-
-			// add property
-			Element e1 = document.createElementNS(Options.W3C_XML_SCHEMA,
-					"element");
-			addAttribute(e1, "ref", elementName);
+		if (ci.matches("rule-xsd-cls-adehook")
+				&& (ci.category() == Options.FEATURE || ci.category() == Options.MIXIN)) {
+			Element e1 = document.createElementNS(Options.W3C_XML_SCHEMA, "element");
+			addAttribute(e1, "ref", ci.pkg().xmlns() + ":" + "AbstractGenericApplicationPropertyOf" + ci.name());
 			addMinMaxOccurs(e1, new Multiplicity("0..*"));
 			sequenceOrChoice.appendChild(e1);
-
-			// add element
-			Element e4 = document.createElementNS(Options.W3C_XML_SCHEMA,
-					"element");
-			document.getDocumentElement().appendChild(e4);
-			addAttribute(e4, "name", elementName);
-			addAttribute(e4, "type", "anyType");
-			addAttribute(e4, "abstract", "true");
 		}
 
 		return res == 1;

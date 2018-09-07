@@ -40,6 +40,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.SortedSet;
+
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.xml.serializer.OutputPropertiesFactory;
@@ -52,13 +53,13 @@ import de.interactive_instruments.ShapeChange.ShapeChangeAbortException;
 import de.interactive_instruments.ShapeChange.ShapeChangeResult;
 import de.interactive_instruments.ShapeChange.ShapeChangeResult.MessageContext;
 import de.interactive_instruments.ShapeChange.TargetIdentification;
-import de.interactive_instruments.ShapeChange.Target.Target;
+import de.interactive_instruments.ShapeChange.Model.ClassInfo;
 import de.interactive_instruments.ShapeChange.Model.Constraint;
 import de.interactive_instruments.ShapeChange.Model.Model;
-import de.interactive_instruments.ShapeChange.Model.ClassInfo;
 import de.interactive_instruments.ShapeChange.Model.OclConstraint;
 import de.interactive_instruments.ShapeChange.Model.PackageInfo;
 import de.interactive_instruments.ShapeChange.Model.PropertyInfo;
+import de.interactive_instruments.ShapeChange.Target.Target;
 
 public class XmlSchema implements Target {
 
@@ -195,6 +196,10 @@ public class XmlSchema implements Target {
 				xsd.pObjectElement(ci, cibase);
 			break;
 		case Options.MIXIN:
+			if (ci.matches("rule-xsd-cls-adehook")) {
+				xsd.pObjectElement(ci, cibase);
+				break;
+			}
 			if (ci.matches("rule-xsd-cls-mixin-classes"))
 				break;
 		};
